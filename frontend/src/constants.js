@@ -1,0 +1,1 @@
+export const ROLES={operator:'采集员',supervisor:'核定员',viewer:'查阅员'};export const STATES={draft:'草稿',public:'公示中',active:'已生效',rolled_back:'已回滚',rejected:'已拆分',open:'待复核',resolved:'已结',ready:'已计算',queued:'计算中',failed:'计算失败',effective:'已生效',withdrawn:'已撤销',revoked:'已回滚'};
