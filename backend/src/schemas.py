@@ -24,3 +24,5 @@ class ReasonIn(Input):
  reason:str=Field(min_length=8,max_length=500)
 class ClockIn(Input):
  now:str;reason:str=Field(min_length=8,max_length=500)
+class BatchIn(Input):
+ run_id:int=Field(ge=1)

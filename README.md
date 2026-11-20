@@ -13,13 +13,13 @@ docker compose up -d --build --wait
 
 | 角色 | 页面与权限 | 典型动作 |
 |---|---|---|
-| operator | 六页可读，入口/别名/证据/候选/提案/异议可写 | 现场采集旧门牌与提出归并 |
+| operator | 七页可读，入口/别名/证据/候选/提案/异议可写 | 现场采集旧门牌与提出归并 |
 | supervisor | 全部日常动作及复核、公示、生效、回滚、演示时钟 | 签核异议和更新服务目录 |
-| viewer | 六页只读，后端所有写接口拒绝 | 查看公示期限及旧址路径 |
+| viewer | 七页只读，后端所有写接口拒绝 | 查看公示期限、旧址路径与簇号去向 |
 
 `.env.example` 包含 COMPOSE_PROJECT_NAME、FRONTEND_PORT、BACKEND_PORT、DB_PORT、DOCKER_SUBNET、JWT_SECRET，生产部署应更换演示凭据。卷保存MySQL、Redis和worker心跳。中文和空格路径已实测。
 
-## 六个模块与状态
+## 七个模块与状态
 
 1. 实地门牌：Entrance记录唯一采集号、街道、门牌数字与经纬度，坐标更正留审计；不因文字近似删除独立入口。
 2. 别名书证：Alias归属入口，Evidence有唯一文件/照片参考号和现场核验说明；来源无证据禁止公示。
@@ -27,6 +27,7 @@ docker compose up -d --build --wait
 4. 住户异议：Objection open→resolved，核定维持归并或split拆分；拆分把提案置rejected、公示withdrawn，仍保留两个入口。
 5. 改址公示：Proposal draft→public→active，Notice至少3天；期限未满、异议未结、来源已有有效映射、映射成环均拒绝生效。
 6. 服务目录：Redirect保存source→target及原提案，逐跳解析canonical。回滚置rolled_back并保留原因、公示和原目标；不是删除历史。所有图写操作先锁Registry父资源，防止并发生效绕过单来源约束或无环检查。
+7. 簇号归并核验：匹配结果只含临时label，核定员在「归并核验」页发布批次才固化为ClusterBatch/Cluster/ClusterMember（每批不可变快照，批内簇号唯一）。新旧簇按共享别名数构造权重矩阵，用scipy `linear_sum_assignment` 做最大权二分匹配：一个旧号最多续给一簇，整批续用旧号的别名总数最大化。ClusterLineage记录continued/split/split_member/merge/merge_member/split_merge/retired/new全部去向及共享别名数。发布在Registry全局锁内取“当时在用”批次为接续基准，旧批置archived，因此先发起、晚算完的批次不会改动在用号；同一run重复发布直接返回既有批次，不重复占号。`GET /clusters/{簇号}`可跨批查成员与拆合去向。
 
 ## 一天的剧本
 
@@ -49,9 +50,9 @@ docker compose up -d --build --wait
 
 ## 代码与开发
 
-Python FastAPI / SQLAlchemy / MySQL8 / Redis7 / scikit-learn；原生HTML/CSS/JS ES modules + Nginx。backend/src/models.py为独立关系模型，schemas.py严格类型与长度范围；entrance_service、proposal_service、publication_service、directory_service分别承担现场、异议、期限、无环图规则。routes.py做JWT角色入口；worker.py运行真实计算；common.py管Registry锁与审计。middlewares.py含RequestTrace/Recovery两中间件。
+Python FastAPI / SQLAlchemy / MySQL8 / Redis7 / scikit-learn（簇配对用scipy线性分配，随scikit-learn安装）；原生HTML/CSS/JS ES modules + Nginx。backend/src/models.py为独立关系模型，schemas.py严格类型与长度范围；entrance_service、proposal_service、publication_service、directory_service、cluster_service分别承担现场、异议、期限、无环图、簇号接续规则。routes.py做JWT角色入口；worker.py运行真实计算；common.py管Registry锁与审计。middlewares.py含RequestTrace/Recovery两中间件。
 
-frontend/src/pages下六页与业务模块对应；components/registry.js共享门牌牌面、状态徽标、标题和表单；utils/api.js管理会话与聚合store，utils/format.js管转义与数据类型。角色和状态枚举分别在backend/src/constants.py、frontend/src/constants.js（模型中持久化值同义）。
+frontend/src/pages下七页与业务模块对应（新增clusters.js归并核验）；components/registry.js共享门牌牌面、状态徽标、标题和表单；utils/api.js管理会话与聚合store，utils/format.js管转义与数据类型。角色和状态/簇关系枚举分别在backend/src/constants.py、frontend/src/constants.js（模型中持久化值同义）。
 
 ```bash
 docker compose exec -T backend python scripts/seed_demo.py

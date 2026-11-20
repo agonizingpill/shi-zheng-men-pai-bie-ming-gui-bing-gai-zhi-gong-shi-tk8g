@@ -36,3 +36,18 @@ class Redirect(Base):
 class Audit(Base):
  __tablename__='audit'
  id=Column(Integer,primary_key=True);actor=Column(String(160),nullable=False);action=Column(String(100),nullable=False);detail=Column(String(500),nullable=False)
+class ClusterBatch(Base):
+ __tablename__='cluster_batches'
+ id=Column(Integer,primary_key=True);run_id=Column(Integer,ForeignKey('match_runs.id'),unique=True,nullable=False);state=Column(String(20),default='active',nullable=False);published=Column(String(32),nullable=False)
+class Cluster(Base):
+ __tablename__='clusters'
+ id=Column(Integer,primary_key=True);batch_id=Column(Integer,ForeignKey('cluster_batches.id'),nullable=False);cluster_no=Column(Integer,nullable=False)
+ __table_args__=(UniqueConstraint('batch_id','cluster_no',name='uq_cluster_batch_no'),)
+class ClusterMember(Base):
+ __tablename__='cluster_members'
+ id=Column(Integer,primary_key=True);cluster_id=Column(Integer,ForeignKey('clusters.id'),nullable=False);alias_id=Column(Integer,ForeignKey('aliases.id'),nullable=False)
+ __table_args__=(UniqueConstraint('cluster_id','alias_id',name='uq_cluster_member'),)
+class ClusterLineage(Base):
+ __tablename__='cluster_lineage'
+ id=Column(Integer,primary_key=True);batch_id=Column(Integer,ForeignKey('cluster_batches.id'),nullable=False);old_cluster_no=Column(Integer,nullable=True);new_cluster_no=Column(Integer,nullable=True);relation=Column(String(20),nullable=False);shared=Column(Integer,default=0,nullable=False)
+ __table_args__=(UniqueConstraint('batch_id','old_cluster_no','new_cluster_no',name='uq_cluster_lineage_pair'),)

@@ -5,7 +5,7 @@ from .models import *
 from .schemas import *
 from .security import current,allow
 from .common import *
-from . import entrance_service as entrance,proposal_service as proposal,publication_service as publication,directory_service as directory
+from . import entrance_service as entrance,proposal_service as proposal,publication_service as publication,directory_service as directory,cluster_service as cluster
 router=APIRouter()
 def change(u,action,fn,supervisor=False):
  allow(u,*(['supervisor'] if supervisor else ['operator','supervisor']))
@@ -13,7 +13,7 @@ def change(u,action,fn,supervisor=False):
   x=fn(s);log(s,u,action,dump(x));s.commit();return dump(x)
 @router.get('/register')
 def register(u=Depends(current)):
- with Session() as s:return {name:[dump(x) for x in rows(s,cls)] for name,cls in [('entrances',Entrance),('aliases',Alias),('evidence',Evidence),('runs',MatchRun),('candidates',Candidate),('proposals',Proposal),('objections',Objection),('notices',Notice),('redirects',Redirect),('clock',Registry)]}
+ with Session() as s:return {name:[dump(x) for x in rows(s,cls)] for name,cls in [('entrances',Entrance),('aliases',Alias),('evidence',Evidence),('runs',MatchRun),('candidates',Candidate),('proposals',Proposal),('objections',Objection),('notices',Notice),('redirects',Redirect),('batches',ClusterBatch),('clusters',Cluster),('cluster_members',ClusterMember),('cluster_lineage',ClusterLineage),('clock',Registry)]}
 @router.get('/audit')
 def audit(u=Depends(current)):
  with Session() as s:return [dump(x) for x in rows(s,Audit)]
@@ -51,3 +51,8 @@ def lookup(id:int,u=Depends(current)):
  with Session() as s:return directory.resolve_root(s,id)
 @router.post('/redirects/{id}/rollback')
 def rollback(id:int,d:ReasonIn,u=Depends(current)):return change(u,'回滚目录',lambda s:directory.rollback(s,id,d.model_dump()),True)
+@router.post('/batches')
+def bcreate(d:BatchIn,u=Depends(current)):return change(u,'发布簇号批次',lambda s:cluster.publish_batch(s,d.model_dump()['run_id']),True)
+@router.get('/clusters/{no}')
+def clookup(no:int,u=Depends(current)):
+ with Session() as s:return cluster.cluster_lookup(s,no)
